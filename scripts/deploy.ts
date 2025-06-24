@@ -2,7 +2,7 @@ import { ethers, upgrades } from "hardhat";
 
 // deploy test womrhole on amoy
 async function main() {
-    const Contract = await ethers.getContractFactory("USDVContract");
+    const Contract = await ethers.getContractFactory("Marsagent");
     const contract = await upgrades.deployProxy(Contract, []);
 
     await contract.waitForDeployment();
