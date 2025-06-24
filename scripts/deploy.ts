@@ -1,15 +1,15 @@
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 
+// deploy test womrhole on amoy
 async function main() {
-    const TestUSDT = await ethers.getContractFactory("TestUSDT");
+    const Contract = await ethers.getContractFactory("USDVContract");
+    const contract = await upgrades.deployProxy(Contract, []);
 
-    const usdt = await TestUSDT.deploy();
-    await usdt.waitForDeployment();
-
-    console.log("Test USDT deployed to:", await usdt.getAddress());
+    await contract.waitForDeployment();
+    console.log("contract deployed to:", await contract.getAddress());
 }
 
 main().catch((error) => {
-    console.error("Deployment failed:", error);
+    console.error(error);
     process.exitCode = 1;
 });

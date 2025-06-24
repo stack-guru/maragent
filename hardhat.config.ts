@@ -1,5 +1,6 @@
 import "@nomicfoundation/hardhat-verify";
 import "@nomicfoundation/hardhat-ethers";
+import '@openzeppelin/hardhat-upgrades';
 import "@nomicfoundation/hardhat-toolbox";
 /** @type import('hardhat/config').HardhatUserConfig */
 import * as dotenv from "dotenv";
