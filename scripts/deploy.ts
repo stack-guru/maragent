@@ -9,7 +9,7 @@ async function main() {
     const usdt = await TestUSDT.deploy(initialSupply);
     await usdt.waitForDeployment();
 
-    console.log("Test USDT deployed to:", usdt.getAddress());
+    console.log("Test USDT deployed to:", await usdt.getAddress());
 }
 
 main().catch((error) => {
