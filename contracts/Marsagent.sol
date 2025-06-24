@@ -15,9 +15,9 @@ contract Marsagent is
     OwnableUpgradeable,
     UUPSUpgradeable
 {
-    uint256 public immutable MAX_SUPPLY = 100_000_000 * 10 ** 18; // 1 billion MRAI
+    uint256 public MAX_SUPPLY;
     uint256 public totalMinted;
-    uint256 public burnRate = 2; // 2%
+    uint256 public burnRate;
 
     mapping(address => bool) public approvedAgents;
 
@@ -45,6 +45,8 @@ contract Marsagent is
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
 
+        MAX_SUPPLY = 100_000_000 * 10 ** 18;
+        burnRate = 2;
         uint256 initialMint = 50_000_000 * 10 ** decimals();
 
         _mint(msg.sender, initialSupply);
