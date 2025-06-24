@@ -4,12 +4,21 @@ pragma solidity ^0.8.28;
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract Marsagent is ERC20, Ownable {
-    uint256 public immutable MAX_SUPPLY = 1_000_000_000 * 10 ** 18; // 1 billion MRAI
+contract Marsagent is
+    Initializable,
+    ERC20Upgradeable,
+    OwnableUpgradeable,
+    UUPSUpgradeable
+{
+    uint256 public immutable MAX_SUPPLY = 100_000_000 * 10 ** 18; // 1 billion MRAI
     uint256 public totalMinted;
+    uint256 public burnRate = 2; // 2%
+
     mapping(address => bool) public approvedAgents;
 
     // Track execution history
@@ -26,10 +35,18 @@ contract Marsagent is ERC20, Ownable {
     event AgentRevoked(address agent);
     event AIActionExecuted(address indexed agent, bytes data);
 
-    constructor(
-        uint256 initialSupply
-    ) ERC20("Marsagent", "MRAI") Ownable(msg.sender) {
-        uint256 initialMint = 700_000_000 * 10 ** decimals(); // 70%
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers(); // Prevent use of constructor logic
+    }
+
+    function initialize(uint256 initialSupply) public initializer {
+        __ERC20_init("Marsagent", "MRAI");
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
+
+        uint256 initialMint = 50_000_000 * 10 ** decimals();
+
         _mint(msg.sender, initialSupply);
         totalMinted += initialMint;
     }
@@ -54,19 +71,16 @@ contract Marsagent is ERC20, Ownable {
         return executionLogs[index];
     }
 
-    // Approve an AI agent
     function approveAgent(address agent) external onlyOwner {
         approvedAgents[agent] = true;
         emit AgentApproved(agent);
     }
 
-    // Revoke an AI agent
     function revokeAgent(address agent) external onlyOwner {
         approvedAgents[agent] = false;
         emit AgentRevoked(agent);
     }
 
-    // Execute AI Action (only approved agent)
     function executeAIAction(bytes calldata data) external onlyApprovedAgent {
         (uint256 commandId, string memory payload) = abi.decode(
             data,
@@ -94,4 +108,27 @@ contract Marsagent is ERC20, Ownable {
         totalMinted += reward;
         emit AIActionExecuted(msg.sender, data);
     }
+
+    function transfer(
+        address recipient,
+        uint256 amount
+    ) public override returns (bool) {
+        uint256 burnAmount = (amount * burnRate) / 100;
+        uint256 sendAmount = amount - burnAmount;
+
+        // Burn the fee from sender
+        _burn(_msgSender(), burnAmount);
+
+        // Transfer remaining to recipient
+        return super.transfer(recipient, sendAmount);
+    }
+
+    function setBurnRate(uint256 rate) external onlyOwner {
+        require(rate <= 10, "Too high"); // cap at 10%
+        burnRate = rate;
+    }
+
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 }

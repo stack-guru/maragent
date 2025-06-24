@@ -3,10 +3,7 @@ import { ethers } from "hardhat";
 async function main() {
     const TestUSDT = await ethers.getContractFactory("TestUSDT");
 
-    // 1,000,000 USDT with 6 decimals
-    const initialSupply = ethers.parseUnits("1000000", 6);
-
-    const usdt = await TestUSDT.deploy(initialSupply);
+    const usdt = await TestUSDT.deploy();
     await usdt.waitForDeployment();
 
     console.log("Test USDT deployed to:", await usdt.getAddress());
