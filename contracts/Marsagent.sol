@@ -40,7 +40,7 @@ contract Marsagent is
         _disableInitializers(); // Prevent use of constructor logic
     }
 
-    function initialize(uint256 initialSupply) public initializer {
+    function initialize() public initializer {
         __ERC20_init("Marsagent", "MRAI");
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
@@ -49,7 +49,7 @@ contract Marsagent is
         burnRate = 2;
         uint256 initialMint = 50_000_000 * 10 ** decimals();
 
-        _mint(msg.sender, initialSupply);
+        _mint(msg.sender, initialMint);
         totalMinted += initialMint;
     }
 
