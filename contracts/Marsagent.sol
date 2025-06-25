@@ -31,9 +31,44 @@ contract Marsagent is
 
     ExecutionLog[] public executionLogs;
 
+    enum ProposalType {
+        ChangeBurnRate,
+        ApproveAgent,
+        RevokeAgent,
+        MintToAddress
+    }
+
+    struct Proposal {
+        uint256 id;
+        address proposer;
+        ProposalType proposalType;
+        string description;
+        address targetAddress; // used for agent approvals or mint
+        uint256 numericValue; // used for burnRate or mint amount
+        uint256 voteFor;
+        uint256 voteAgainst;
+        uint256 deadline;
+        bool executed;
+    }
+    uint256 public nextProposalId;
+    mapping(uint256 => Proposal) public proposals;
+    mapping(uint256 => mapping(address => bool)) public hasVoted;
+
     event AgentApproved(address agent);
     event AgentRevoked(address agent);
     event AIActionExecuted(address indexed agent, bytes data);
+    event ProposalCreated(
+        uint256 indexed id,
+        address proposer,
+        string description
+    );
+    event Voted(
+        uint256 indexed id,
+        address voter,
+        bool support,
+        uint256 weight
+    );
+    event ProposalExecuted(uint256 indexed id, bool passed);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -109,6 +144,80 @@ contract Marsagent is
         _mint(msg.sender, reward);
         totalMinted += reward;
         emit AIActionExecuted(msg.sender, data);
+    }
+
+    function createProposal(
+        ProposalType _type,
+        string calldata _description,
+        address _targetAddress,
+        uint256 _numericValue
+    ) external returns (uint256) {
+        require(_type <= ProposalType.MintToAddress, "Invalid proposal type");
+
+        proposals[nextProposalId] = Proposal({
+            id: nextProposalId,
+            proposer: msg.sender,
+            proposalType: _type,
+            description: _description,
+            targetAddress: _targetAddress,
+            numericValue: _numericValue,
+            voteFor: 0,
+            voteAgainst: 0,
+            deadline: block.timestamp + 3 days,
+            executed: false
+        });
+
+        emit ProposalCreated(nextProposalId, msg.sender, _description);
+        return nextProposalId++;
+    }
+
+    function executeProposal(uint256 proposalId) external {
+        Proposal storage proposal = proposals[proposalId];
+
+        require(block.timestamp >= proposal.deadline, "Voting still ongoing");
+        require(!proposal.executed, "Already executed");
+
+        proposal.executed = true;
+        bool passed = proposal.voteFor > proposal.voteAgainst;
+
+        if (passed) {
+            if (proposal.proposalType == ProposalType.ChangeBurnRate) {
+                require(proposal.numericValue <= 10, "Burn rate too high");
+                burnRate = proposal.numericValue;
+            } else if (proposal.proposalType == ProposalType.ApproveAgent) {
+                approvedAgents[proposal.targetAddress] = true;
+                emit AgentApproved(proposal.targetAddress);
+            } else if (proposal.proposalType == ProposalType.RevokeAgent) {
+                approvedAgents[proposal.targetAddress] = false;
+                emit AgentRevoked(proposal.targetAddress);
+            } else if (proposal.proposalType == ProposalType.MintToAddress) {
+                require(
+                    totalMinted + proposal.numericValue <= MAX_SUPPLY,
+                    "Exceeds max supply"
+                );
+                _mint(proposal.targetAddress, proposal.numericValue);
+                totalMinted += proposal.numericValue;
+            }
+        }
+
+        emit ProposalExecuted(proposalId, passed);
+    }
+
+    function vote(uint256 proposalId, bool support) external {
+        Proposal storage proposal = proposals[proposalId];
+        require(block.timestamp < proposal.deadline, "Voting ended");
+        require(!hasVoted[proposalId][msg.sender], "Already voted");
+
+        uint256 weight = balanceOf(msg.sender);
+        require(weight > 0, "No voting power");
+
+        if (support) {
+            proposal.voteFor += weight;
+        } else {
+            proposal.voteAgainst += weight;
+        }
+
+        hasVoted[proposalId][msg.sender] = true;
     }
 
     function transfer(
